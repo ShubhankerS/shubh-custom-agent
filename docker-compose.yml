@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   nas-intelligence-agent:
     # 1. Build the image from our Dockerfile
