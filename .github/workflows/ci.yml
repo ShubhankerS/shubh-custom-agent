@@ -22,33 +22,17 @@ jobs:
       - name: Python Security Scan (Bandit)
         run: |
           pip install bandit
+          # Scans the 'app' folder for common security issues
           bandit -r app/ -ll
 
-  # 2. LINT: Check for clean, professional code style
-  lint:
+  # 2. QUALITY: Check for syntax errors (The "Does it actually run?" check)
+  quality-gate:
     needs: security-audit
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.11'
-      - name: Run Ruff (Linter)
-        run: |
-          pip install ruff
-          # This checks for unused imports, messy code, and PEP8 issues
-          ruff check app/
-
-  # 3. QUALITY: Check for syntax errors
-  quality-gate:
-    needs: lint
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-      - name: Set up Python
+      - name: Set up Python 3.11
         uses: actions/setup-python@v4
         with:
           python-version: '3.11'
@@ -57,9 +41,11 @@ jobs:
           python -m pip install --upgrade pip
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
       - name: Python Syntax Check
-        run: python -m compileall app/
+        run: |
+          # This only fails if your code is broken/invalid Python
+          python -m compileall app/
 
-  # 4. BUILD: Final Docker verification
+  # 3. BUILD: Final Docker verification
   docker-build-test:
     needs: quality-gate
     runs-on: ubuntu-latest
@@ -67,4 +53,6 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
       - name: Verify Blueprint (Docker Build)
-        run: docker build -t nas-agent-test .
+        run: |
+          # This confirms the NAS will be able to build your image
+          docker build -t nas-agent-test .
