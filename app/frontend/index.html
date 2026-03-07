@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>TrueNAS | Intelligence Console</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        body { background-color: #0d1117; }
+        .markdown-body table { width: 100%; border-collapse: collapse; margin-bottom: 1rem; border: 1px solid #30363d; }
+        .markdown-body th, .markdown-body td { border: 1px solid #30363d; padding: 8px; text-align: left; }
+        .markdown-body th { background-color: #161b22; }
+        .markdown-body code { background-color: #21262d; padding: 2px 4px; border-radius: 4px; font-family: monospace; color: #ff7b72; }
+        .markdown-body pre { background-color: #161b22; padding: 12px; border-radius: 6px; margin: 10px 0; overflow-x: auto; border: 1px solid #30363d; }
+    </style>
+</head>
+<body class="text-gray-300 font-mono">
+    <div class="max-w-6xl mx-auto p-6">
+        <header class="border-b border-gray-800 pb-4 mb-6 flex justify-between items-center">
+            <h1 class="text-xl font-bold tracking-tighter text-white">TRUENAS_CORE_INTELLIGENCE > <span class="text-blue-500">v25.10</span></h1>
+            <div class="text-[10px] text-gray-500 uppercase">Connection: Secure_Socket_127.0.0.1</div>
+        </header>
+
+        <div id="console" class="space-y-6 min-h-[70vh]">
+            <div class="text-gray-600 italic">SYSTEM READY. AWAITING COMMANDS...</div>
+        </div>
+
+        <div class="fixed bottom-0 left-0 w-full bg-[#0d1117] border-t border-gray-800 p-4">
+            <div class="max-w-6xl mx-auto flex gap-4">
+                <span class="text-blue-500 py-3 font-bold">$</span>
+                <input type="text" id="cmd" placeholder="Run status check, disk audit, or config query..." 
+                       class="flex-1 bg-transparent border-none outline-none text-white placeholder-gray-700" autofocus>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const consoleEl = document.getElementById('console');
+        const inputEl = document.getElementById('cmd');
+
+        async function runCommand() {
+            const val = inputEl.value;
+            if(!val) return;
+            inputEl.value = '';
+
+            consoleEl.innerHTML += `<div class="text-blue-400 font-bold mt-8">$ ${val}</div>`;
+            const loading = document.createElement('div');
+            loading.className = 'text-gray-500 animate-pulse';
+            loading.innerText = 'FETCHING_DATA...';
+            consoleEl.appendChild(loading);
+            window.scrollTo(0, document.body.scrollHeight);
+
+            try {
+                const res = await fetch('http://127.0.0.1:8000/ask', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt: val })
+                });
+                const data = await res.json();
+                loading.remove();
+                
+                const out = document.createElement('div');
+                out.className = 'markdown-body text-sm leading-relaxed text-gray-200 mt-2 pl-4 border-l border-gray-800';
+                out.innerHTML = marked.parse(data.answer);
+                consoleEl.appendChild(out);
+            } catch (e) {
+                loading.innerText = 'CONNECTION_LOST: Check backend status.';
+            }
+            window.scrollTo(0, document.body.scrollHeight);
+        }
+
+        inputEl.addEventListener('keypress', (e) => { if(e.key === 'Enter') runCommand(); });
+    </script>
+</body>
+</html>
