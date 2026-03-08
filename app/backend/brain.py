@@ -5,6 +5,8 @@ import litellm
 from litellm import completion, embedding
 from dotenv import load_dotenv
 from pathlib import Path
+
+# Professional Imports
 from ..tools.nas_client import NASClient
 from .memory_db import AgentMemory
 
@@ -24,7 +26,7 @@ def get_relevant_docs(user_query, limit=3):
             cursor = conn.cursor()
             cursor.execute("SELECT content, vector FROM knowledge_base")
             rows = cursor.fetchall()
-        if not rows: return "N/A"
+        if not rows: return "DATABASE_EMPTY: Run ingestor to index docs."
         
         scored_chunks = []
         for content, vec_json in rows:
@@ -34,20 +36,21 @@ def get_relevant_docs(user_query, limit=3):
         
         scored_chunks.sort(key=lambda x: x[0], reverse=True)
         return "\n---\n".join([chunk[1] for score, chunk in scored_chunks[:limit]])
-    except: return "DOCS_UNAVAILABLE"
+    except Exception as e: 
+        return f"DOCS_UNAVAILABLE: {str(e)}"
 
 def ask_expert(user_prompt):
-    # 1. Physical Data Retrieval
+    # 1. Physical Data Retrieval via YOUR NASClient
     try:
         client = NASClient()
         pool_data = client.get_pool_status()
     except Exception as e:
-        pool_data = {"error": f"ENV_LOAD_FAILURE: {str(e)}"}
+        pool_data = {"error": f"PHYSICAL_LINK_FAULT: {str(e)}"}
 
     # 2. Logic Retrieval (RAG)
     docs = get_relevant_docs(user_prompt)
     
-    # 3. System Prompt (No Pleasantries)
+    # 3. System Prompt (Your Original Protocol)
     system_context = f"""
     SYSTEM_ROLE: TrueNAS 25.10 Intelligence Engine.
     HARDWARE_STATE: {json.dumps(pool_data)}
@@ -57,13 +60,16 @@ def ask_expert(user_prompt):
     - Use Markdown Tables for all status reports.
     - Use code blocks for suggested shell commands.
     - Zero conversational filler. 
-    - If hardware data shows an 'error', prioritize diagnosing the connection.
+    - If hardware data shows an 'error', diagnose the NAS middleware connectivity first.
     """
 
     try:
         response = completion(
             model="gemini/gemini-3-flash-preview",
-            messages=[{"role": "system", "content": system_context}, {"role": "user", "content": user_prompt}]
+            messages=[
+                {"role": "system", "content": system_context}, 
+                {"role": "user", "content": user_prompt}
+            ]
         )
         return response.choices[0].message.content
     except Exception as e:
