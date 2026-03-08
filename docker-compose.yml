@@ -1,20 +1,14 @@
 services:
   nas-intelligence-agent:
-    # 1. Build the image from our Dockerfile
     build: .
     container_name: nas-agent
     restart: always
-    
-    # 2. Map the NAS port 8000 to the container port 8000
-    ports:
-      - "8000:8000"
-    
-    # 3. Inject your private secrets (Gemini Key, TrueNAS IP)
+    # network_mode: host allows 127.0.0.1 to point to the ACTUAL NAS
+    network_mode: host 
     env_file:
       - .env
-      
-    # 4. Map the permanent NAS folders to the container
     volumes:
       - ./data:/app/data
       - ./docs:/app/docs
       - ./logs:/app/logs
+      - /var/run/middlewared.sock:/var/run/middlewared.sock

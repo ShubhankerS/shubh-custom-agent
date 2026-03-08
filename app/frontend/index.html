@@ -18,7 +18,7 @@
     <div class="max-w-6xl mx-auto p-6">
         <header class="border-b border-gray-800 pb-4 mb-6 flex justify-between items-center">
             <h1 class="text-xl font-bold tracking-tighter text-white">TRUENAS_CORE_INTELLIGENCE > <span class="text-blue-500">v25.10</span></h1>
-            <div class="text-[10px] text-gray-500 uppercase">Connection: Secure_Socket_127.0.0.1</div>
+            <div class="text-[10px] text-gray-500 uppercase">Connection: Secure_Socket_NAS_IP</div>
         </header>
 
         <div id="console" class="space-y-6 min-h-[70vh]">
@@ -51,7 +51,8 @@
             window.scrollTo(0, document.body.scrollHeight);
 
             try {
-                const res = await fetch('http://127.0.0.1:8000/ask', {
+                // FIXED URL: Works from Mac to NAS
+                const res = await fetch('/ask', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ prompt: val })
