@@ -12,6 +12,27 @@
         .markdown-body th { background-color: #161b22; }
         .markdown-body code { background-color: #21262d; padding: 2px 4px; border-radius: 4px; font-family: monospace; color: #ff7b72; }
         .markdown-body pre { background-color: #161b22; padding: 12px; border-radius: 6px; margin: 10px 0; overflow-x: auto; border: 1px solid #30363d; }
+        
+        /* Advisory Styling for Consultant Mode */
+        .advisory-block {
+            background-color: #0d2a4a;
+            border-left: 4px solid #3b82f6;
+            padding: 1.5rem;
+            margin: 1rem 0;
+            border-radius: 0 8px 8px 0;
+            font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+        }
+        .advisory-header {
+            color: #60a5fa;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            font-size: 0.75rem;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
     </style>
 </head>
 <body class="text-gray-300 font-mono">
@@ -62,7 +83,22 @@
                 
                 const out = document.createElement('div');
                 out.className = 'markdown-body text-sm leading-relaxed text-gray-200 mt-2 pl-4 border-l border-gray-800';
-                out.innerHTML = marked.parse(data.answer);
+                
+                // Detection logic for Advisory vs System
+                let htmlContent = marked.parse(data.answer);
+                if (data.answer.includes('### ADVISORY')) {
+                    htmlContent = htmlContent.replace(/<h3[^>]*>ADVISORY<\/h3>([\s\S]*)/i, (match, content) => {
+                        return `<div class="advisory-block">
+                                    <div class="advisory-header">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                                        Consultant Advisory
+                                    </div>
+                                    <div class="text-blue-50 text-base leading-relaxed">${content}</div>
+                                </div>`;
+                    });
+                }
+                
+                out.innerHTML = htmlContent;
                 consoleEl.appendChild(out);
             } catch (e) {
                 loading.innerText = 'CONNECTION_LOST: Check backend status.';

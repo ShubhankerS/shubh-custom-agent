@@ -36,6 +36,15 @@ class AgentMemory:
                     vector BLOB          -- The 'Secret Code' numbers (JSON string)
                 )
             """)
+
+            # Table 3: User Preferences (Long-term Strategy Memory)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS user_preferences (
+                    key TEXT PRIMARY KEY,
+                    value TEXT,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
             conn.commit()
 
     def add_message(self, role, content):
@@ -44,6 +53,20 @@ class AgentMemory:
             cursor = conn.cursor()
             cursor.execute("INSERT INTO chat_history (role, content) VALUES (?, ?)", (role, content))
             conn.commit()
+
+    def set_preference(self, key, value):
+        """Stores or updates a user preference."""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute("INSERT OR REPLACE INTO user_preferences (key, value) VALUES (?, ?)", (key, value))
+            conn.commit()
+
+    def get_preferences(self):
+        """Retrieves all user preferences."""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT key, value FROM user_preferences")
+            return {row[0]: row[1] for row in cursor.fetchall()}
 
     def get_history(self, limit=20):
         """Retrieves conversation history."""
