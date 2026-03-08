@@ -56,3 +56,13 @@ def chat(query: Question):
 @app.get("/history")
 def get_history():
     return memory.get_history()
+
+# --- NEW: Real-time Telemetry Endpoint ---
+from ..tools.nas_client import NASClient
+
+@app.get("/telemetry")
+def get_telemetry():
+    """Independent telemetry route for the UI sidebar."""
+    client = NASClient()
+    return client.get_telemetry()
+# -----------------------------------------
