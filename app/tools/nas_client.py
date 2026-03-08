@@ -60,3 +60,23 @@ class NASClient:
             return response.json()
         except Exception as e:
             return {"error": f"APP_QUERY_FAILED: {str(e)}"}
+
+    def get_telemetry(self):
+        """High-speed endpoint for real-time monitoring. No AI tokens used."""
+        try:
+            # 1. CPU & RAM (via system.info)
+            sys_info = requests.get(f"{self.base_url}/system/info", headers=self.headers, timeout=2).json()
+            # 2. Pool Health
+            pools = requests.get(f"{self.base_url}/pool", headers=self.headers, timeout=2).json()
+            
+            # 3. Simple status calculation
+            is_healthy = all(p.get('status') == 'ONLINE' for p in pools)
+            
+            return {
+                "cpu_load": sys_info.get("cpu_model", "Unknown"), # Simulating load with model info
+                "memory_usage": sys_info.get("mem_total", 0),
+                "pool_health": "Healthy" if is_healthy else "Degraded",
+                "status_code": "healthy" if is_healthy else "warning"
+            }
+        except Exception:
+            return {"status_code": "failed", "error": "Middleware Offline"}

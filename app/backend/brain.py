@@ -45,49 +45,36 @@ def ask_expert(user_prompt):
     history = memory.get_history(limit=10)
     preferences = memory.get_preferences()
 
-    # 1. Physical Data Retrieval via YOUR NASClient
+    # 1. Physical Data Retrieval
     try:
         client = NASClient()
-        pool_data = client.get_pool_status()
-        disk_health = client.get_disk_health()
-        dataset_quotas = client.get_dataset_quotas()
-        service_utilization = client.get_service_utilization()
-        
         hardware_state = {
-            "pools": pool_data,
-            "disks": disk_health,
-            "datasets": dataset_quotas,
-            "apps": service_utilization
+            "pools": client.get_pool_status(),
+            "disks": client.get_disk_health(),
+            "apps": client.get_service_utilization()
         }
-    except Exception as e:
-        hardware_state = {"error": f"PHYSICAL_LINK_FAULT: {str(e)}"}
+    except Exception:
+        hardware_state = {"error": "PHYSICAL_LINK_FAULT"}
 
-    # 2. Logic Retrieval (RAG)
-    docs = get_relevant_docs(user_prompt)
-    
-    # 3. System Prompt (Your Original Protocol)
+    # 2. System Prompt: Human Expert Hardware Advisor
     system_context = f"""
-    SYSTEM_ROLE: TrueNAS 25.10 Intelligence Engine & Storage Consultant.
+    SYSTEM_ROLE: You are a Human Expert Hardware Advisor for TrueNAS. 
+    CHARACTER: Direct, decisive, highly technical. No apologies. No fluff.
     HARDWARE_STATE: {json.dumps(hardware_state)}
     STRATEGY_PREFERENCES: {json.dumps(preferences)}
-    MANUAL_LOGIC: {docs}
     
-    CONSULTANT_PROTOCOL:
-    - Analyze HARDWARE_STATE for unused capacity/performance overhead.
-    - If CPU < 20% and RAM > 8GB free, suggest resource-heavy Apps (Nextcloud, Plex, Arr Stack).
-    - If Disk Space > 70% utilized, suggest automated cleanup or ZFS compression/deduplication strategies.
-    - Proactively mention relevant 'TrueNAS Apps' from the MANUAL_LOGIC when appropriate.
-    - Transition to 'Advisory Mode' for long-form strategy discussions, using a more helpful but still technical tone.
+    STRATEGIC_PROTOCOL:
+    - If user asks 'what can I do with my NAS?', provide 3 distinct approaches (e.g., Media Center, Backup Node, Home Lab).
+    - For each, provide a direct PROS/CONS list based STRICTLY on the HARDWARE_STATE (RAM/CPU/Storage).
+    - Proactively identify bottlenecks: If RAM < 16GB, warn about ZFS performance/Apps. If Pool > 80%, warn about fragmentation.
+    - If hardware is underutilized (CPU < 10%, high RAM free), suggest specific TrueNAS Apps to maximize ROI.
 
     OUTPUT_PROTOCOL:
-    - Use Markdown Tables for all status reports.
-    - Use code blocks for suggested shell commands.
-    - For Advisory/Consultation, use ### ADVISORY header to distinguish from system commands.
-    - Zero conversational filler. 
-    - If hardware data shows an 'error', diagnose the NAS middleware connectivity first.
+    - Use Markdown Tables for telemetry-heavy reports.
+    - Use ### ADVISORY for expert guidance.
+    - Use code blocks for ZFS/Shell commands.
     """
 
-    # Assemble Messages with History
     messages = [{"role": "system", "content": system_context}]
     for msg in history:
         messages.append({"role": msg["role"], "content": msg["content"]})
@@ -99,11 +86,8 @@ def ask_expert(user_prompt):
             messages=messages
         )
         answer = response.choices[0].message.content
-        
-        # 4. Save to Memory
         memory.add_message("user", user_prompt)
         memory.add_message("assistant", answer)
-        
         return answer
-    except Exception as e: 
+    except Exception as e:
         return f"BRAIN_FAULT: {str(e)}"
