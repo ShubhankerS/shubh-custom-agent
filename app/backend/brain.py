@@ -40,37 +40,70 @@ def get_relevant_docs(user_query, limit=3):
         return f"DOCS_UNAVAILABLE: {str(e)}"
 
 def ask_expert(user_prompt):
+    # 0. Load Memory and Preferences
+    memory = AgentMemory()
+    history = memory.get_history(limit=10)
+    preferences = memory.get_preferences()
+
     # 1. Physical Data Retrieval via YOUR NASClient
     try:
         client = NASClient()
         pool_data = client.get_pool_status()
+        disk_health = client.get_disk_health()
+        dataset_quotas = client.get_dataset_quotas()
+        service_utilization = client.get_service_utilization()
+        
+        hardware_state = {
+            "pools": pool_data,
+            "disks": disk_health,
+            "datasets": dataset_quotas,
+            "apps": service_utilization
+        }
     except Exception as e:
-        pool_data = {"error": f"PHYSICAL_LINK_FAULT: {str(e)}"}
+        hardware_state = {"error": f"PHYSICAL_LINK_FAULT: {str(e)}"}
 
     # 2. Logic Retrieval (RAG)
     docs = get_relevant_docs(user_prompt)
     
     # 3. System Prompt (Your Original Protocol)
     system_context = f"""
-    SYSTEM_ROLE: TrueNAS 25.10 Intelligence Engine.
-    HARDWARE_STATE: {json.dumps(pool_data)}
+    SYSTEM_ROLE: TrueNAS 25.10 Intelligence Engine & Storage Consultant.
+    HARDWARE_STATE: {json.dumps(hardware_state)}
+    STRATEGY_PREFERENCES: {json.dumps(preferences)}
     MANUAL_LOGIC: {docs}
     
+    CONSULTANT_PROTOCOL:
+    - Analyze HARDWARE_STATE for unused capacity/performance overhead.
+    - If CPU < 20% and RAM > 8GB free, suggest resource-heavy Apps (Nextcloud, Plex, Arr Stack).
+    - If Disk Space > 70% utilized, suggest automated cleanup or ZFS compression/deduplication strategies.
+    - Proactively mention relevant 'TrueNAS Apps' from the MANUAL_LOGIC when appropriate.
+    - Transition to 'Advisory Mode' for long-form strategy discussions, using a more helpful but still technical tone.
+
     OUTPUT_PROTOCOL:
     - Use Markdown Tables for all status reports.
     - Use code blocks for suggested shell commands.
+    - For Advisory/Consultation, use ### ADVISORY header to distinguish from system commands.
     - Zero conversational filler. 
     - If hardware data shows an 'error', diagnose the NAS middleware connectivity first.
     """
 
+    # Assemble Messages with History
+    messages = [{"role": "system", "content": system_context}]
+    for msg in history:
+        messages.append({"role": msg["role"], "content": msg["content"]})
+    messages.append({"role": "user", "content": user_prompt})
+
     try:
         response = completion(
-            model="gemini/gemini-3-flash-preview",
-            messages=[
-                {"role": "system", "content": system_context}, 
-                {"role": "user", "content": user_prompt}
-            ]
+            model="gemini/gemini-2.0-flash",
+            messages=messages
         )
-        return response.choices[0].message.content
-    except Exception as e:
+        answer = response.choices[0].message.content
+        
+        # 4. Save to Memory
+        memory.add_message("user", user_prompt)
+        memory.add_message("assistant", answer)
+        
+        return answer
+    except Exception as e: 
         return f"BRAIN_FAULT: {str(e)}"

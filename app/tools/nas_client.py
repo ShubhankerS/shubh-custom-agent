@@ -32,3 +32,31 @@ class NASClient:
             return response.json()
         except Exception as e:
             return {"error": f"PHYSICAL_CONNECTION_FAILED: {str(e)}"}
+
+    def get_disk_health(self):
+        """Fetches S.M.A.R.T. and overall disk status."""
+        try:
+            response = requests.get(f"{self.base_url}/disk", headers=self.headers, timeout=5)
+            response.raise_for_status()
+            return response.json()
+        except Exception as e:
+            return {"error": f"DISK_QUERY_FAILED: {str(e)}"}
+
+    def get_dataset_quotas(self):
+        """Retrieves ZFS dataset usage and quotas."""
+        try:
+            response = requests.get(f"{self.base_url}/pool/dataset", headers=self.headers, timeout=5)
+            response.raise_for_status()
+            return response.json()
+        except Exception as e:
+            return {"error": f"QUOTA_QUERY_FAILED: {str(e)}"}
+
+    def get_service_utilization(self):
+        """Fetches TrueNAS App (chart release) resource utilization."""
+        try:
+            # Gets status of installed Apps
+            response = requests.get(f"{self.base_url}/chart/release", headers=self.headers, timeout=5)
+            response.raise_for_status()
+            return response.json()
+        except Exception as e:
+            return {"error": f"APP_QUERY_FAILED: {str(e)}"}
