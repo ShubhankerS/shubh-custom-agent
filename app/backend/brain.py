@@ -95,7 +95,7 @@ def ask_expert(user_prompt):
 
     try:
         response = completion(
-            model="gemini/gemini-2.0-flash",
+            model="gemini/gemini-1.5-flash",
             messages=messages
         )
         answer = response.choices[0].message.content
